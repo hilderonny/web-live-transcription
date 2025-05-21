@@ -8,7 +8,7 @@
             let isRunning = false
             let audioStream
             let analyserNode
-            let streamToBackendNode
+            let audioChunkCollectorNode
             let analyserDataArray
 
             const canvas = document.getElementById('visualizationCanvas')
@@ -79,20 +79,30 @@
                     // Medien-Stream erstellen, beinhaltet nur Audio
                     audioStream = await navigator.mediaDevices.getUserMedia({audio:audioConstraints})
                     // AudioContext bietet einen Pipeline Mechanismus zur Audioverarbeitung
-                    const audioContext = new AudioContext()
+                    const sampleRate = 44100
+                    const audioContext = new AudioContext({sampleRate: sampleRate})
                     // Ersten Knoten für Audioquelle erstellen
                     const audioSourceNode = audioContext.createMediaStreamSource(audioStream)
                     console.log(audioStream, audioContext, audioSourceNode)
                     // Eigenen Prozessor für Audiodaten registrieren
-                    await audioContext.audioWorklet.addModule('./js/stream-to-backend-processor.js')
+                    await audioContext.audioWorklet.addModule('./js/audio-chunk-collector.js')
                     // Verarbeitungsknoten mit eigenem Prozessor an Pipeline anhängen
-                    streamToBackendNode = new AudioWorkletNode(audioContext, 'stream-to-backend-processor')
-                    audioSourceNode.connect(streamToBackendNode)
+                    audioChunkCollectorNode = new AudioWorkletNode(audioContext, 'audio-chunk-collector', { processorOptions: {
+                        chunkDuration: 4,
+                        sampleRate: sampleRate
+                    }})
+                    audioChunkCollectorNode.port.onmessage = (event) => { // Hier kommen die Audiodaten vom ersten Kanal an
+                        const data = event.data
+                        if (data.message === 'audioData') {
+                            console.log(new Date(), data.audioData.length)
+                        }
+                    }
+                    audioSourceNode.connect(audioChunkCollectorNode)
                     // Visualisierung hinterher einbinden, dann sehen wir, ob die Daten durch den Prozessor gehen
                     analyserNode = audioContext.createAnalyser()
                     analyserNode.fftSize = 2048
                     analyserDataArray = new Uint8Array(analyserNode.fftSize)
-                    streamToBackendNode.connect(analyserNode)
+                    audioChunkCollectorNode.connect(analyserNode)
                     draw() // VIsualisierungsmalung triggern
                     return true
                 } catch (err) {
@@ -106,8 +116,8 @@
                 if (audioStream) {
                     audioStream.getTracks().forEach(track => track.stop());
                 }
-                if (streamToBackendNode) {
-                    streamToBackendNode.port.postMessage({ message: 'stop' })
+                if (audioChunkCollectorNode) {
+                    audioChunkCollectorNode.port.postMessage({ message: 'stop' })
                 }
             }
 
