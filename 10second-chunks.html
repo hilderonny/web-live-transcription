@@ -6,6 +6,7 @@
         <script type="module">
 
             let isRunning = false
+            let audioStream
 
             // Button zum Starten und Stoppen
             const startStopButton = document.getElementById('startStopButton')
@@ -25,12 +26,21 @@
 
             // Fragt nach Mikrofonberechtigung und beginnt Aufnahme und Verarbeitung
             async function start() {
-                // TODO: Berechtigung abfragen
-                return true
+                // Berechtigung wird automatisch abgefragt
+                try {
+                    audioStream = await navigator.mediaDevices.getUserMedia({audio:true})
+                    return true
+                } catch (_) {
+                    return false
+                }
             }
 
             // Beendet Aufnahme und Verarbeitung
-            async function stop() {}
+            async function stop() {
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                }
+            }
 
             // TODO: Visualisierung mit https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API
 
