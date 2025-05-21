@@ -5,7 +5,34 @@
         <title>10 Sekunden Schnipsel mit 5 Sekunden Überlagerung</title>
         <script type="module">
 
-            
+            let isRunning = false
+
+            // Button zum Starten und Stoppen
+            const startStopButton = document.getElementById('startStopButton')
+            startStopButton.addEventListener('click', async () => {
+                if (isRunning) {
+                    await stop()
+                    startStopButton.innerHTML = 'Start'
+                    isRunning = false
+                } else {
+                    const startSucceeded = await start()
+                    if (startSucceeded) {
+                        startStopButton.innerHTML = 'Stop'
+                        isRunning = true
+                    }
+                }
+            })
+
+            // Fragt nach Mikrofonberechtigung und beginnt Aufnahme und Verarbeitung
+            async function start() {
+                // TODO: Berechtigung abfragen
+                return true
+            }
+
+            // Beendet Aufnahme und Verarbeitung
+            async function stop() {}
+
+            // TODO: Visualisierung mit https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API
 
         </script>
     </head>
@@ -14,7 +41,7 @@
 
         <h1>Steuerung</h1>
 
-        <button id="startStopButton"></button>
+        <button id="startStopButton">Start</button>
 
         <h1>Ausgabe</h1>
 
