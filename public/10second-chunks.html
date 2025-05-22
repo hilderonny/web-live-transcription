@@ -11,8 +11,13 @@
             let audioChunkCollectorNode
             let analyserDataArray
 
+            const chunkDuration = 2 // Puffer in Sekunden, bevor Transkription beginnt
+            const sampleRate = 16000 // 16 kHz werden von faster-whisper erwartet
+
             const canvas = document.getElementById('visualizationCanvas')
             const canvasContext = canvas.getContext('2d')
+
+            const outputDiv = document.getElementById('outputDiv')
 
             // Button zum Starten und Stoppen
             const startStopButton = document.getElementById('startStopButton')
@@ -49,16 +54,16 @@
                 let x = 0;
 
                 for (let i = 0; i < bufferSize; i++) {
-                const v = analyserDataArray[i] / 128.0;
-                const y = (v * height) / 2;
+                    const v = analyserDataArray[i] / 128.0;
+                    const y = (v * height) / 2;
 
-                if (i === 0) {
-                    canvasContext.moveTo(x, y);
-                } else {
-                    canvasContext.lineTo(x, y);
-                }
+                    if (i === 0) {
+                        canvasContext.moveTo(x, y);
+                    } else {
+                        canvasContext.lineTo(x, y);
+                    }
 
-                x += sliceWidth;
+                    x += sliceWidth;
                 }
 
                 canvasContext.lineTo(width, height / 2);
@@ -75,7 +80,12 @@
                     body: blob
                 })
                 const jsonResult = await response.json()
-                console.log(jsonResult)
+                // console.log(jsonResult)
+                for (const text of jsonResult.texts) {
+                    const div = document.createElement('div')
+                    div.innerHTML = `[${jsonResult.language}] ${text.text}`
+                    outputDiv.appendChild(div)
+                }
             }
 
             // Fragt nach Mikrofonberechtigung und beginnt Aufnahme und Verarbeitung
@@ -91,7 +101,6 @@
                     // Medien-Stream erstellen, beinhaltet nur Audio
                     audioStream = await navigator.mediaDevices.getUserMedia({audio:audioConstraints})
                     // AudioContext bietet einen Pipeline Mechanismus zur Audioverarbeitung
-                    const sampleRate = 44100
                     const audioContext = new AudioContext({sampleRate: sampleRate})
                     // Ersten Knoten für Audioquelle erstellen
                     const audioSourceNode = audioContext.createMediaStreamSource(audioStream)
@@ -100,7 +109,7 @@
                     await audioContext.audioWorklet.addModule('./js/audio-chunk-collector.js')
                     // Verarbeitungsknoten mit eigenem Prozessor an Pipeline anhängen
                     audioChunkCollectorNode = new AudioWorkletNode(audioContext, 'audio-chunk-collector', { processorOptions: {
-                        chunkDuration: 4,
+                        chunkDuration: chunkDuration,
                         sampleRate: sampleRate
                     }})
                     audioChunkCollectorNode.port.onmessage = (event) => { // Hier kommen die Audiodaten vom ersten Kanal an

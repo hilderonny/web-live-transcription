@@ -29,3 +29,9 @@ Falls es sich bei der erkannten Sprache nicht um Deutsch handelt, wird der Text 
 
 
 Die URL zur TaskBridge wird in der Datei `./js/config.json` festgelegt.
+
+## 10second-chunks.html
+
+Hier wird der Audiostrom mit 16 kHz aufgenommen und alle 2 Sekunden zur Transkription an den Server gesendet.
+
+Allerdings braucht die Erkennung der Sprache zu lange, um echtzeitfähig zu sein.
