@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>10 Sekunden Schnipsel mit 5 Sekunden Überlagerung</title>
+        <script type="module">
+
+            let isRunning = false
+            let audioStream
+            let analyserNode
+            let audioChunkCollectorNode
+            let analyserDataArray
+
+            const chunkDuration = 10 // Puffer in Sekunden, bevor Transkription beginnt
+            const sampleRate = 16000 // 16 kHz werden von faster-whisper erwartet
+
+            const canvas = document.getElementById('visualizationCanvas')
+            const canvasContext = canvas.getContext('2d')
+
+            const outputTable = document.getElementById('outputTable')
+
+            // Button zum Starten und Stoppen
+            const startStopButton = document.getElementById('startStopButton')
+            startStopButton.addEventListener('click', async () => {
+                if (isRunning) {
+                    await stop()
+                    startStopButton.innerHTML = 'Start'
+                    isRunning = false
+                } else {
+                    const startSucceeded = await start()
+                    if (startSucceeded) {
+                        startStopButton.innerHTML = 'Stop'
+                        isRunning = true
+                    }
+                }
+            })
+
+            // TODO: draw() dokumentieren https://github.com/mdn/webaudio-examples/blob/main/voice-change-o-matic/scripts/app.js
+            function draw() {
+                if (!analyserNode) return
+                const width = canvas.width
+                const height = canvas.height
+                const bufferSize = analyserNode.fftSize
+                analyserNode.getByteTimeDomainData(analyserDataArray)
+                canvasContext.fillStyle = "rgb(200, 200, 200)";
+                canvasContext.fillRect(0, 0, width, height);
+
+                canvasContext.lineWidth = 2;
+                canvasContext.strokeStyle = "rgb(0, 0, 0)";
+
+                canvasContext.beginPath();
+
+                const sliceWidth = (width * 1.0) / bufferSize;
+                let x = 0;
+
+                for (let i = 0; i < bufferSize; i++) {
+                    const v = analyserDataArray[i] / 128.0;
+                    const y = (v * height) / 2;
+
+                    if (i === 0) {
+                        canvasContext.moveTo(x, y);
+                    } else {
+                        canvasContext.lineTo(x, y);
+                    }
+
+                    x += sliceWidth;
+                }
+
+                canvasContext.lineTo(width, height / 2);
+                canvasContext.stroke()
+                requestAnimationFrame(draw)
+            }
+
+            // Sendet einen Audio-Chunk an /api/transcribe und wertet Transkription aus
+            async function processAudioData(floatArray) {
+                const blob = new Blob([floatArray.buffer], { type: 'application/octet-stream' })
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    header: { 'Content-Type': 'application/octet-stream' },
+                    body: blob
+                })
+                const jsonResult = await response.json()
+                // console.log(jsonResult)
+                for (const text of jsonResult.texts) {
+                    const tr = document.createElement('tr')
+                    tr.innerHTML = `<td>${jsonResult.language}</td><td>${text.text}</td>`
+                    outputTable.appendChild(tr)
+                }
+            }
+
+            // Fragt nach Mikrofonberechtigung und beginnt Aufnahme und Verarbeitung
+            async function start() {
+                const audioConstraints = {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    autoGainControl: true,
+                    noiseSuppression: true,
+                }
+                // Berechtigung wird automatisch abgefragt
+                try {
+                    // Medien-Stream erstellen, beinhaltet nur Audio
+                    audioStream = await navigator.mediaDevices.getUserMedia({audio:audioConstraints})
+                    // AudioContext bietet einen Pipeline Mechanismus zur Audioverarbeitung
+                    const audioContext = new AudioContext({sampleRate: sampleRate})
+                    // Ersten Knoten für Audioquelle erstellen
+                    const audioSourceNode = audioContext.createMediaStreamSource(audioStream)
+                    console.log(audioStream, audioContext, audioSourceNode)
+                    // Eigenen Prozessor für Audiodaten registrieren
+                    await audioContext.audioWorklet.addModule('./js/audio-chunk-collector.js')
+                    // Verarbeitungsknoten mit eigenem Prozessor an Pipeline anhängen
+                    audioChunkCollectorNode = new AudioWorkletNode(audioContext, 'audio-chunk-collector', { processorOptions: {
+                        chunkDuration: chunkDuration,
+                        sampleRate: sampleRate
+                    }})
+                    audioChunkCollectorNode.port.onmessage = (event) => { // Hier kommen die Audiodaten vom ersten Kanal an
+                        const data = event.data
+                        if (data.message === 'audioData') {
+                            console.log(new Date(), data.audioData.length)
+                            processAudioData(data.audioData)
+                        }
+                    }
+                    audioSourceNode.connect(audioChunkCollectorNode)
+                    // Visualisierung hinterher einbinden, dann sehen wir, ob die Daten durch den Prozessor gehen
+                    analyserNode = audioContext.createAnalyser()
+                    analyserNode.fftSize = 2048
+                    analyserDataArray = new Uint8Array(analyserNode.fftSize)
+                    audioChunkCollectorNode.connect(analyserNode)
+                    draw() // VIsualisierungsmalung triggern
+                    return true
+                } catch (err) {
+                    console.log(err)
+                    return false
+                }
+            }
+
+            // Beendet Aufnahme und Verarbeitung
+            async function stop() {
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                }
+                if (audioChunkCollectorNode) {
+                    audioChunkCollectorNode.port.postMessage({ message: 'stop' })
+                }
+            }
+
+            // TODO: Visualisierung mit https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API
+
+        </script>
+    </head>
+
+    <body>
+
+        <h1>Steuerung</h1>
+
+        <button id="startStopButton">Start</button>
+
+        <h1>Visualisierung</h1>
+
+        <canvas id="visualizationCanvas"></canvas>
+
+        <h1>Ausgabe</h1>
+
+        <table id="outputTable" border="1"></table>
+
+    </body>
+
+</html>
