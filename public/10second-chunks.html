@@ -11,13 +11,13 @@
             let audioChunkCollectorNode
             let analyserDataArray
 
-            const chunkDuration = 2 // Puffer in Sekunden, bevor Transkription beginnt
+            const chunkDuration = 10 // Puffer in Sekunden, bevor Transkription beginnt
             const sampleRate = 16000 // 16 kHz werden von faster-whisper erwartet
 
             const canvas = document.getElementById('visualizationCanvas')
             const canvasContext = canvas.getContext('2d')
 
-            const outputDiv = document.getElementById('outputDiv')
+            const outputTable = document.getElementById('outputTable')
 
             // Button zum Starten und Stoppen
             const startStopButton = document.getElementById('startStopButton')
@@ -82,9 +82,9 @@
                 const jsonResult = await response.json()
                 // console.log(jsonResult)
                 for (const text of jsonResult.texts) {
-                    const div = document.createElement('div')
-                    div.innerHTML = `[${jsonResult.language}] ${text.text}`
-                    outputDiv.appendChild(div)
+                    const tr = document.createElement('tr')
+                    tr.innerHTML = `<td>${jsonResult.language}</td><td>${text.text}</td>`
+                    outputTable.appendChild(tr)
                 }
             }
 
@@ -160,7 +160,7 @@
 
         <h1>Ausgabe</h1>
 
-        <div id="outputDiv"></div>
+        <table id="outputTable" border="1"></table>
 
     </body>
 

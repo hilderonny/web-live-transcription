@@ -27,7 +27,6 @@ Falls es sich bei der erkannten Sprache nicht um Deutsch handelt, wird der Text 
 
 ![Screenshot](./doc/screenshot.png)
 
-
 Die URL zur TaskBridge wird in der Datei `./js/config.json` festgelegt.
 
 ## 10second-chunks.html
@@ -35,3 +34,10 @@ Die URL zur TaskBridge wird in der Datei `./js/config.json` festgelegt.
 Hier wird der Audiostrom mit 16 kHz aufgenommen und alle 2 Sekunden zur Transkription an den Server gesendet.
 
 Allerdings braucht die Erkennung der Sprache zu lange, um echtzeitfähig zu sein.
+
+Auch wenn ich die Sprache fest auf "de" festlege und das tiny-Modell verwende, braucht ein einzelner Request länger als eine Sekunde zur Verarbeitung.
+
+Ich kann zwar das Modell large-v2 verwenden, brauche jedoch 10-Sekunden-Chunks, damit diese sinnvoll und in Echtzeit verarbeitet werden können.
+Vor allem, wenn sie überlappend verarbeitet werden sollen. Bei 5 Sekunden-Chunks ist der Audiokontext rundrum zu kurz, um sinnvolle Transkriptionen zu erzeugen.
+
+![Screenshot](./doc/10secondchunks.png)

@@ -40,12 +40,12 @@ def transcribe():
     # Transkribieren
     segments, info = faster_whisper_model.transcribe(float_array, task = 'transcribe')
 
-    print('Detected language "%s" with probability %f' % (info.language, info.language_probability))
+    # print('Detected language "%s" with probability %f' % (info.language, info.language_probability))
 
     transcriptions = []
 
     for segment in segments:
-        print('[%.2fs -> %.2fs] %s' % (segment.start, segment.end, segment.text))
+        # print('[%.2fs -> %.2fs] %s' % (segment.start, segment.end, segment.text))
         transcriptions.append({
             "start": segment.start,
             "end": segment.end,
